@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+  - repo: local
+    hooks:
+      - id: npm-run-lint
+        name: npm run lint (apps/shell)
+        entry: bash
+        args:
+          - "-lc"
+          - "cd apps/shell && npm run lint -- --max-warnings=0"
+        language: system
+        pass_filenames: false
+        additional_dependencies: []
+        stages: [commit]
+        always_run: true
+        require_serial: true
+
