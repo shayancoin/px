@@ -16,6 +16,7 @@ out/
 # IDE specific files
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 

@@ -1,0 +1,47 @@
+@font-face {
+  font-family: "Universal Sans Display";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("Universal Sans Display"),
+    local("UniversalSansDisplay"),
+    url("/fonts/Universal-Sans-Display-Regular.woff2") format("woff2");
+  unicode-range: U+0020-007F, U+00A0-00FF, U+0100-017F;
+}
+
+@font-face {
+  font-family: "Universal Sans Display";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    local("Universal Sans Display Medium"),
+    local("UniversalSansDisplay-Medium"),
+    url("/fonts/Universal-Sans-Display-Medium.woff2") format("woff2");
+  unicode-range: U+0020-007F, U+00A0-00FF, U+0100-017F;
+}
+
+@font-face {
+  font-family: "Universal Sans Text";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("Universal Sans Text"),
+    local("UniversalSansText"),
+    url("/fonts/Universal-Sans-Text-Regular.woff2") format("woff2");
+  unicode-range: U+0020-007F, U+00A0-00FF, U+0100-017F;
+}
+
+@font-face {
+  font-family: "Universal Sans Text";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    local("Universal Sans Text Medium"),
+    local("UniversalSansText-Medium"),
+    url("/fonts/Universal-Sans-Text-Medium.woff2") format("woff2");
+  unicode-range: U+0020-007F, U+00A0-00FF, U+0100-017F;
+}
