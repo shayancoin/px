@@ -157,25 +157,57 @@ export type LayoutId =
   | "BROKEN_PLAN"
   | "DISAPPEARING_LINEAR";
 
-type LegacyLayoutId = "TWO_X_KITCHEN" | "WOKE_KITCHEN" | "LINEAR";
+export type LegacyLayoutId =
+  | "TWO_X_KITCHEN"
+  | "DUAL_ISLAND"
+  | "WOKE_KITCHEN"
+  | "LINEAR";
+
+const CANONICAL_BY_LEGACY: Record<LegacyLayoutId, LayoutId> = {
+  TWO_X_KITCHEN: "BACK_KITCHEN",
+  DUAL_ISLAND: "DUAL_ISLAND",
+  WOKE_KITCHEN: "BROKEN_PLAN",
+  LINEAR: "DISAPPEARING_LINEAR",
+};
+
+const LEGACY_BY_CANONICAL: Record<LayoutId, LegacyLayoutId> = {
+  BACK_KITCHEN: "TWO_X_KITCHEN",
+  DUAL_ISLAND: "DUAL_ISLAND",
+  BROKEN_PLAN: "WOKE_KITCHEN",
+  DISAPPEARING_LINEAR: "LINEAR",
+};
 
 const LAYOUT_ALIASES: Record<LayoutId | LegacyLayoutId, LayoutId> = {
   BACK_KITCHEN: "BACK_KITCHEN",
   DUAL_ISLAND: "DUAL_ISLAND",
   BROKEN_PLAN: "BROKEN_PLAN",
   DISAPPEARING_LINEAR: "DISAPPEARING_LINEAR",
-  TWO_X_KITCHEN: "BACK_KITCHEN",
-  WOKE_KITCHEN: "BROKEN_PLAN",
-  LINEAR: "DISAPPEARING_LINEAR",
+  ...CANONICAL_BY_LEGACY,
 };
 
-export function normalizeLayoutId(value: string): LayoutId {
-  const key = value.toUpperCase().replace(/[^A-Z_]/g, "_") as LayoutId | LegacyLayoutId;
+export function canonicalLayoutId(
+  value: LayoutId | LegacyLayoutId | string,
+): LayoutId {
+  const key =
+    typeof value === "string"
+      ? (value.toUpperCase().replace(/[^A-Z_]/g, "_") as LayoutId | LegacyLayoutId)
+      : value;
   const resolved = LAYOUT_ALIASES[key];
   if (!resolved) {
     throw new Error(`Unsupported layout id: ${value}`);
   }
   return resolved;
+}
+
+export function legacyLayoutId(
+  value: LayoutId | LegacyLayoutId | string,
+): LegacyLayoutId {
+  const canonical = canonicalLayoutId(value);
+  return LEGACY_BY_CANONICAL[canonical];
+}
+
+export function normalizeLayoutId(value: string): LayoutId {
+  return canonicalLayoutId(value);
 }
 
 export type DoorColor = "DFIB" | "DFKW" | "DFLG" | "DFHS";
@@ -279,13 +311,31 @@ const TOP_MATERIALS: Record<TopColor, TopMaterialOption> = {
   },
 };
 
-export const DOOR_OPTIONS = Object.keys(DOOR_MATERIALS) as DoorColor[];
-export const TOP_OPTIONS = Object.keys(TOP_MATERIALS) as TopColor[];
+const cloneDoorOption = (option: DoorMaterialOption): DoorMaterialOption =>
+  Object.freeze({ ...option });
+
+export const DOOR_OPTIONS: readonly DoorMaterialOption[] = Object.freeze(
+  Object.values(DOOR_MATERIALS).map(cloneDoorOption),
+);
+export const DOOR_TOKENS: readonly DoorColor[] = Object.freeze(
+  DOOR_OPTIONS.map((option) => option.token as DoorColor),
+);
+export const TOP_OPTIONS: readonly TopMaterialOption[] = Object.freeze(
+  Object.values(TOP_MATERIALS).map((option) => Object.freeze({ ...option })),
+);
+export const TOP_TOKENS: readonly TopColor[] = Object.freeze(
+  TOP_OPTIONS.map((option) => option.token as TopColor),
+);
 
 export interface FinishSelection {
   door: DoorColor;
   top: TopColor;
 }
+
+export const DEFAULT_FINISH_SELECTION: FinishSelection = Object.freeze({
+  door: "DFKW" as DoorColor,
+  top: "CDZM" as TopColor,
+});
 
 export interface ModulePlacement {
   moduleId: ModuleId;
@@ -536,7 +586,31 @@ const LAYOUT_DEFINITIONS: Record<LayoutId, LayoutDefinition> = {
   DISAPPEARING_LINEAR: DISAPPEARING_LINEAR_LAYOUT,
 };
 
-export const LAYOUT_OPTIONS = Object.keys(LAYOUT_DEFINITIONS) as LayoutId[];
+export const LAYOUT_OPTIONS: readonly LayoutId[] = Object.freeze(
+  Object.keys(LAYOUT_DEFINITIONS) as LayoutId[],
+);
+export const LEGACY_LAYOUT_OPTIONS: readonly LegacyLayoutId[] = Object.freeze(
+  LAYOUT_OPTIONS.map((layoutId) => legacyLayoutId(layoutId)),
+);
+
+export type LayoutSpec = LayoutDefinition;
+export type LayoutRoom = LayoutRoomDefinition;
+
+export function getLayoutById(id: LayoutId | LegacyLayoutId): LayoutSpec {
+  const canonical = canonicalLayoutId(id);
+  const spec = LAYOUT_DEFINITIONS[canonical];
+  if (!spec) {
+    throw new Error(`Layout definition missing for ${String(id)}`);
+  }
+  return {
+    ...spec,
+    rooms: spec.rooms.map((room) => ({
+      ...room,
+      origin: { ...room.origin },
+      placements: room.placements.map((placement) => ({ ...placement })),
+    })),
+  };
+}
 
 export interface DesignPlacement extends ModulePlacement {
   id: string;
@@ -1006,31 +1080,23 @@ function addPlacement(design: Design, placement: LayoutPlacementDefinition, sour
 }
 
 function cheapestDoor(): DoorColor {
-  const [cheapest] = [...DOOR_OPTIONS].sort(
-    (a, b) => DOOR_MATERIALS[a].multiplier - DOOR_MATERIALS[b].multiplier,
-  );
-  return cheapest;
+  const [cheapest] = [...DOOR_OPTIONS].sort((a, b) => a.multiplier - b.multiplier);
+  return (cheapest ?? DOOR_MATERIALS.DFKW).token as DoorColor;
 }
 
 function mostPremiumDoor(): DoorColor {
-  const [premium] = [...DOOR_OPTIONS].sort(
-    (a, b) => DOOR_MATERIALS[b].multiplier - DOOR_MATERIALS[a].multiplier,
-  );
-  return premium;
+  const [premium] = [...DOOR_OPTIONS].sort((a, b) => b.multiplier - a.multiplier);
+  return (premium ?? DOOR_MATERIALS.DFHS).token as DoorColor;
 }
 
 function cheapestTop(): TopColor {
-  const [cheapest] = [...TOP_OPTIONS].sort(
-    (a, b) => TOP_MATERIALS[a].multiplier - TOP_MATERIALS[b].multiplier,
-  );
-  return cheapest;
+  const [cheapest] = [...TOP_OPTIONS].sort((a, b) => a.multiplier - b.multiplier);
+  return (cheapest ?? TOP_MATERIALS.CDZM).token as TopColor;
 }
 
 function mostPremiumTop(): TopColor {
-  const [premium] = [...TOP_OPTIONS].sort(
-    (a, b) => TOP_MATERIALS[b].multiplier - TOP_MATERIALS[a].multiplier,
-  );
-  return premium;
+  const [premium] = [...TOP_OPTIONS].sort((a, b) => b.multiplier - a.multiplier);
+  return (premium ?? TOP_MATERIALS.CMCA).token as TopColor;
 }
 
 export interface OptimizationResult {
@@ -1228,24 +1294,40 @@ export function topMaterial(token: TopColor): TopMaterialOption {
   return resolveTopMaterial(token);
 }
 
-export function manifestIdToDoorToken(manifestId: string): DoorColor {
+export function doorManifestIdToToken(manifestId: string): DoorColor {
   const entry = DOOR_OPTIONS.find(
-    (token) => DOOR_MATERIALS[token].manifestId.toLowerCase() === manifestId.toLowerCase(),
+    (option) => option.manifestId.toLowerCase() === manifestId.toLowerCase(),
   );
   if (!entry) {
     throw new Error(`Unknown door manifest id: ${manifestId}`);
   }
-  return entry;
+  return entry.token as DoorColor;
 }
 
-export function manifestIdToTopToken(manifestId: string): TopColor {
+export function topManifestIdToToken(manifestId: string): TopColor {
   const entry = TOP_OPTIONS.find(
-    (token) => TOP_MATERIALS[token].manifestId.toLowerCase() === manifestId.toLowerCase(),
+    (option) => option.manifestId.toLowerCase() === manifestId.toLowerCase(),
   );
   if (!entry) {
     throw new Error(`Unknown top manifest id: ${manifestId}`);
   }
-  return entry;
+  return entry.token as TopColor;
+}
+
+export function doorTokenToManifestId(token: DoorColor): string {
+  const manifestId = DOOR_MATERIALS[token]?.manifestId;
+  if (!manifestId) {
+    throw new Error(`Unknown door token: ${token}`);
+  }
+  return manifestId;
+}
+
+export function topTokenToManifestId(token: TopColor): string {
+  const manifestId = TOP_MATERIALS[token]?.manifestId;
+  if (!manifestId) {
+    throw new Error(`Unknown top token: ${token}`);
+  }
+  return manifestId;
 }
 
 

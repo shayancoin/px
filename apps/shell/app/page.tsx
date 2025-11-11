@@ -1,27 +1,111 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LayoutSelector } from "@/components/LayoutSelector";
 import { MaterialPicker } from "@/components/MaterialPicker";
 import { useUIStore } from "@/stores/ui";
 import { useDesignGenerator } from "@/hooks/useDesignGenerator";
 import { useAuth } from "@/components/AuthGate";
+import {
+  doorTokenToManifestId,
+  legacyLayoutId,
+  topTokenToManifestId,
+  type LayoutId,
+} from "@/domain/spec";
 
 export default function LandingPage() {
   const { user } = useAuth();
   const { generate } = useDesignGenerator();
-  const { selectedLayouts, finishes, phase, error, updateFinish, toggleLayout } =
-    useUIStore((state) => ({
-      selectedLayouts: state.selectedLayouts,
-      finishes: state.finishes,
-      phase: state.phase,
-      error: state.error,
-      updateFinish: state.updateFinish,
-      toggleLayout: state.toggleLayout,
-    }));
+  const {
+    selectedLayouts,
+    finishes,
+    phase,
+    error,
+    updateFinish,
+    toggleLayout,
+    setFinishes,
+    setSelectedLayouts,
+  } = useUIStore((state) => ({
+    selectedLayouts: state.selectedLayouts,
+    finishes: state.finishes,
+    phase: state.phase,
+    error: state.error,
+    updateFinish: state.updateFinish,
+    toggleLayout: state.toggleLayout,
+    setFinishes: state.setFinishes,
+    setSelectedLayouts: state.setSelectedLayouts,
+  }));
 
   const [localError, setLocalError] = useState<string | null>(null);
+  const hasAppliedState = useRef(false);
+
+  useEffect(() => {
+    if (hasAppliedState.current) {
+      return;
+    }
+    hasAppliedState.current = true;
+
+    try {
+      const url = new URL(window.location.href);
+      const rawState = url.searchParams.get("state");
+      if (!rawState) {
+        return;
+      }
+
+      const parsed = JSON.parse(rawState) as {
+        layout?: string;
+        door?: string;
+        top?: string;
+      } | null;
+
+      if (!parsed || typeof parsed !== "object") {
+        return;
+      }
+
+      if (typeof parsed.layout === "string") {
+        try {
+          const legacy = legacyLayoutId(parsed.layout) as LayoutId;
+          setSelectedLayouts([legacy]);
+        } catch (layoutError) {
+          console.warn("Unrecognised layout token from ?state=", layoutError);
+        }
+      }
+
+      const nextDoor =
+        typeof parsed.door === "string"
+          ? (() => {
+              try {
+                return doorTokenToManifestId(parsed.door);
+              } catch (doorError) {
+                console.warn("Unrecognised door token from ?state=", doorError);
+                return null;
+              }
+            })()
+          : null;
+
+      const nextTop =
+        typeof parsed.top === "string"
+          ? (() => {
+              try {
+                return topTokenToManifestId(parsed.top);
+              } catch (topError) {
+                console.warn("Unrecognised top token from ?state=", topError);
+                return null;
+              }
+            })()
+          : null;
+
+      if (nextDoor || nextTop) {
+        setFinishes({
+          door: nextDoor ?? finishes.door,
+          top: nextTop ?? finishes.top,
+        });
+      }
+    } catch (stateError) {
+      console.warn("Unable to parse ?state parameter", stateError);
+    }
+  }, [finishes.door, finishes.top, setFinishes, setSelectedLayouts]);
 
   const canGenerate = useMemo(() => {
     return selectedLayouts.length > 0 && phase !== "generating";

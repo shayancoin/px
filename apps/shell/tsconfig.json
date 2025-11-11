@@ -25,6 +25,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@repo/design-engine": [
+        "../../packages/design-engine/src"
+      ],
+      "@repo/generation-engine": [
+        "../../packages/generation-engine/src"
       ]
     }
   },
