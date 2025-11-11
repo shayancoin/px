@@ -1,10 +1,17 @@
 import {
   MATERIAL_MANIFEST,
   MODULES,
+  toDesignFinishes,
   type FinishSelection,
-  type ModulePlacement,
   type ModuleId,
+  type ModulePlacement,
 } from "@/domain/spec";
+import {
+  priceUSD,
+  type Design,
+  type DesignPlacement,
+  type LayoutId as CanonicalLayoutId,
+} from "@repo/design-engine";
 
 export const DEPOSIT_RATE = 0.2;
 
@@ -49,6 +56,60 @@ function resolveTopMultiplier(selection: FinishSelection): number {
   return definition.multiplier;
 }
 
+const PRICING_LAYOUT: CanonicalLayoutId = "BACK_KITCHEN";
+
+function buildPricingDesign(
+  placements: Array<Pick<ModulePlacement, "moduleId">>,
+  finishes: FinishSelection,
+): Design {
+  const designFinishes = toDesignFinishes(finishes);
+  const designPlacements: DesignPlacement[] = placements.map((placement, index) => {
+    const spec = MODULES[placement.moduleId];
+    if (!spec) {
+      throw new Error(`Unknown module provided for pricing: ${placement.moduleId}`);
+    }
+    const key = `pricing:${placement.moduleId}:${index}`;
+    return {
+      id: key,
+      key,
+      roomId: "pricing",
+      moduleId: placement.moduleId,
+      x: 0,
+      y: 0,
+      optional: false,
+      source: "base",
+      width: spec.width,
+      depth: spec.depth,
+      height: spec.height,
+      category: spec.category,
+    };
+  });
+
+  return {
+    layout: PRICING_LAYOUT,
+    name: "Pricing Synthetic Layout",
+    summary: "Deterministic synthetic layout for pricing breakdowns",
+    door: designFinishes.door,
+    top: designFinishes.top,
+    rooms: [
+      {
+        id: "pricing",
+        label: "Pricing",
+        width: 0,
+        depth: 0,
+        origin: { x: 0, y: 0 },
+        placements: designPlacements,
+      },
+    ],
+    operations: [],
+    metadata: {
+      basePriceUSD: 0,
+      currentPriceUSD: 0,
+    },
+    createdAt: new Date(0).toISOString(),
+  };
+}
+
 export function calculatePricing(
   placements: Array<Pick<ModulePlacement, "moduleId">>,
   finishes: FinishSelection,
@@ -70,7 +131,10 @@ export function calculatePricing(
   const topMultiplier = resolveTopMultiplier(finishes);
   const finishesMultiplier = doorMultiplier * topMultiplier;
 
-  const totalUSD = Math.round(moduleSubtotalUSD * finishesMultiplier);
+  const design = buildPricingDesign(placements, finishes);
+  const totalUSD = priceUSD(design);
+  design.metadata.basePriceUSD = totalUSD;
+  design.metadata.currentPriceUSD = totalUSD;
   const depositUSD = Math.round(totalUSD * depositRate);
 
   return {
