@@ -1,377 +1,285 @@
 import materialsManifest from "../public/materials/manifest.json";
 
-export const MILLIMETER_TO_PIXEL = 0.2;
-export const PIXEL_TO_MILLIMETER = 1 / MILLIMETER_TO_PIXEL;
+import {
+  MILLIMETER_TO_PIXEL,
+  PIXEL_TO_MILLIMETER,
+  MIN_LAYOUT_SELECTION,
+  MAX_LAYOUT_SELECTION,
+  VARIANTS_PER_LAYOUT,
+  MODULES,
+  MODULE_IDS,
+  MODULE_LIST,
+  type ModuleId,
+  type ModuleSpec,
+  type ModuleCategory,
+  type ModulePlacement,
+  type LayoutSpec as EngineLayoutSpec,
+  type LayoutRoom as EngineLayoutRoom,
+  type LayoutId as CanonicalLayoutId,
+  type LegacyLayoutId,
+  LAYOUT_OPTIONS as CANONICAL_LAYOUT_OPTIONS,
+  canonicalLayoutId,
+  legacyLayoutId,
+  getLayoutById as getCanonicalLayoutById,
+  DOOR_OPTIONS,
+  TOP_OPTIONS,
+  type DoorColor,
+  type TopColor,
+} from "@repo/design-engine";
 
-export const MIN_LAYOUT_SELECTION = 1;
-export const MAX_LAYOUT_SELECTION = 4;
-export const VARIANTS_PER_LAYOUT = 4;
-
-export type ModuleCategory =
-  | "Column"
-  | "Base"
-  | "Snack"
-  | "Upper";
-
-export type ModuleId =
-  | "CAFI"
-  | "CAMI"
-  | "CAOV"
-  | "CAFE"
-  | "CSSP"
-  | "CSDP"
-  | "BARA"
-  | "BSDR"
-  | "BSDD"
-  | "BSSD"
-  | "ISNA"
-  | "BADI"
-  | "USDO";
-
-export interface ModuleSpec {
-  id: ModuleId;
-  category: ModuleCategory;
-  label: string;
-  width: number;
-  depth: number;
-  height: number;
-  baseCostUSD: number;
-}
-
-export const MODULES: Record<ModuleId, ModuleSpec> = {
-  CAFI: {
-    id: "CAFI",
-    category: "Column",
-    label: "Fridge Unit",
-    width: 600,
-    depth: 595,
-    height: 2123,
-    baseCostUSD: 1200,
-  },
-  CAMI: {
-    id: "CAMI",
-    category: "Column",
-    label: "Microwave Unit",
-    width: 600,
-    depth: 595,
-    height: 2123,
-    baseCostUSD: 1200,
-  },
-  CAOV: {
-    id: "CAOV",
-    category: "Column",
-    label: "Oven Unit",
-    width: 600,
-    depth: 595,
-    height: 2123,
-    baseCostUSD: 1200,
-  },
-  CAFE: {
-    id: "CAFE",
-    category: "Column",
-    label: "Freezer Unit",
-    width: 600,
-    depth: 595,
-    height: 2123,
-    baseCostUSD: 1200,
-  },
-  CSSP: {
-    id: "CSSP",
-    category: "Column",
-    label: "Pantry",
-    width: 600,
-    depth: 595,
-    height: 2123,
-    baseCostUSD: 1200,
-  },
-  CSDP: {
-    id: "CSDP",
-    category: "Column",
-    label: "Double Pantry",
-    width: 1256,
-    depth: 595,
-    height: 2123,
-    baseCostUSD: 1800,
-  },
-  BARA: {
-    id: "BARA",
-    category: "Base",
-    label: "Range Unit",
-    width: 1200,
-    depth: 745,
-    height: 828,
-    baseCostUSD: 800,
-  },
-  BSDR: {
-    id: "BSDR",
-    category: "Base",
-    label: "Drawer Base",
-    width: 1200,
-    depth: 745,
-    height: 828,
-    baseCostUSD: 600,
-  },
-  BSDD: {
-    id: "BSDD",
-    category: "Base",
-    label: "Double Door Base",
-    width: 1200,
-    depth: 595,
-    height: 633,
-    baseCostUSD: 500,
-  },
-  BSSD: {
-    id: "BSSD",
-    category: "Base",
-    label: "Single Door Base",
-    width: 600,
-    depth: 595,
-    height: 633,
-    baseCostUSD: 400,
-  },
-  ISNA: {
-    id: "ISNA",
-    category: "Snack",
-    label: "Island Extension",
-    width: 1200,
-    depth: 1240,
-    height: 932,
-    baseCostUSD: 2000,
-  },
-  BADI: {
-    id: "BADI",
-    category: "Upper",
-    label: "Upper Door",
-    width: 600,
-    depth: 595,
-    height: 722,
-    baseCostUSD: 400,
-  },
-  USDO: {
-    id: "USDO",
-    category: "Base",
-    label: "Dishwasher Unit",
-    width: 600,
-    depth: 595,
-    height: 828,
-    baseCostUSD: 400,
-  },
+export {
+  MILLIMETER_TO_PIXEL,
+  PIXEL_TO_MILLIMETER,
+  MIN_LAYOUT_SELECTION,
+  MAX_LAYOUT_SELECTION,
+  VARIANTS_PER_LAYOUT,
+  MODULES,
+  MODULE_IDS,
+  MODULE_LIST,
 };
 
-export const MODULE_LIST = Object.values(MODULES);
-export const MODULE_IDS = Object.keys(MODULES) as ModuleId[];
+export type { ModuleId, ModuleSpec, ModuleCategory, ModulePlacement };
 
-export type LayoutId =
-  | "TWO_X_KITCHEN"
-  | "DUAL_ISLAND"
-  | "WOKE_KITCHEN"
-  | "LINEAR";
+export type LayoutId = LegacyLayoutId;
+export type LayoutRoom = EngineLayoutRoom;
+export type LayoutSpec = Omit<EngineLayoutSpec, "id"> & { id: LayoutId };
 
-export interface ModulePlacement {
-  moduleId: ModuleId;
-  x: number;
-  y: number;
-  rotation?: number;
-  note?: string;
-}
+const ENGINE_LAYOUTS = new Map(
+  CANONICAL_LAYOUT_OPTIONS.map((canonicalId) => {
+    const spec = getCanonicalLayoutById(canonicalId);
+    const legacyId = legacyLayoutId(canonicalId);
+    return [
+      legacyId,
+      {
+        ...spec,
+        id: legacyId,
+        rooms: spec.rooms.map((room) => ({
+          ...room,
+          placements: room.placements.map((placement) => ({ ...placement })),
+        })),
+      } satisfies LayoutSpec,
+    ] as const;
+  }),
+);
 
-export interface LayoutRoom {
-  id: string;
-  label: string;
-  width: number;
-  depth: number;
-  origin: {
-    x: number;
-    y: number;
-  };
-  placements: ModulePlacement[];
-}
+export const LAYOUTS = Object.fromEntries(ENGINE_LAYOUTS.entries()) as Record<
+  LayoutId,
+  LayoutSpec
+>;
 
-export interface LayoutSpec {
-  id: LayoutId;
-  name: string;
-  summary: string;
-  rooms: LayoutRoom[];
-  defaultScale: number;
-}
-
-const twoXKitchen: LayoutSpec = {
-  id: "TWO_X_KITCHEN",
-  name: "2X Kitchen (Show + Prep)",
-  summary:
-    "Dual-room layout with a showcase kitchen and offset prep space for parallel workflows.",
-  defaultScale: MILLIMETER_TO_PIXEL,
-  rooms: [
-    {
-      id: "show",
-      label: "Show Kitchen",
-      width: 6000,
-      depth: 3500,
-      origin: { x: 0, y: 0 },
-      placements: [
-        { moduleId: "CAFI", x: 200, y: 0 },
-        { moduleId: "CAOV", x: 800, y: 0 },
-        { moduleId: "CAMI", x: 1400, y: 0 },
-        { moduleId: "BARA", x: 2000, y: 0 },
-        { moduleId: "BSDD", x: 3200, y: 0 },
-        { moduleId: "CSSP", x: 4400, y: 0 },
-        { moduleId: "BSSD", x: 5000, y: 0 },
-        { moduleId: "ISNA", x: 1800, y: 1900, note: "Show island left" },
-        { moduleId: "ISNA", x: 3200, y: 1900, note: "Show island right" },
-      ],
-    },
-    {
-      id: "prep",
-      label: "Prep Kitchen",
-      width: 4500,
-      depth: 3000,
-      origin: { x: 7000, y: 0 },
-      placements: [
-        { moduleId: "CSSP", x: 7100, y: 0 },
-        { moduleId: "USDO", x: 7700, y: 0 },
-        { moduleId: "BSDD", x: 8300, y: 0 },
-        { moduleId: "BSDR", x: 9500, y: 0 },
-        { moduleId: "CAFE", x: 10900, y: 0 },
-      ],
-    },
-  ],
-};
-
-const dualIsland: LayoutSpec = {
-  id: "DUAL_ISLAND",
-  name: "Dual Island",
-  summary: "Symmetric dual-island layout for entertaining and prep zones.",
-  defaultScale: MILLIMETER_TO_PIXEL,
-  rooms: [
-    {
-      id: "primary",
-      label: "Dual Island Room",
-      width: 6000,
-      depth: 4000,
-      origin: { x: 0, y: 0 },
-      placements: [
-        { moduleId: "CAFI", x: 200, y: 0 },
-        { moduleId: "USDO", x: 800, y: 0 },
-        { moduleId: "BARA", x: 1400, y: 0 },
-        { moduleId: "BSDD", x: 2600, y: 0 },
-        { moduleId: "CSSP", x: 3800, y: 0 },
-        { moduleId: "CAOV", x: 4400, y: 0 },
-        { moduleId: "CAMI", x: 5000, y: 0 },
-        { moduleId: "ISNA", x: 1500, y: 2000, note: "Wet island" },
-        { moduleId: "ISNA", x: 3000, y: 2600, note: "Dry island" },
-      ],
-    },
-  ],
-};
-
-const wokeKitchen: LayoutSpec = {
-  id: "WOKE_KITCHEN",
-  name: "Woke Kitchen",
-  summary:
-    "Partition-ready layout balancing pantry storage and preparation zones.",
-  defaultScale: MILLIMETER_TO_PIXEL,
-  rooms: [
-    {
-      id: "primary",
-      label: "Woke Kitchen",
-      width: 6500,
-      depth: 4200,
-      origin: { x: 0, y: 0 },
-      placements: [
-        { moduleId: "CAFI", x: 200, y: 0 },
-        { moduleId: "USDO", x: 800, y: 0 },
-        { moduleId: "BARA", x: 1400, y: 0 },
-        { moduleId: "BSDD", x: 2600, y: 0 },
-        { moduleId: "CSDP", x: 3800, y: 0, note: "Ends at 5056" },
-        { moduleId: "CAMI", x: 5056, y: 0 },
-        { moduleId: "CAOV", x: 5656, y: 0 },
-        { moduleId: "ISNA", x: 2600, y: 2400 },
-      ],
-    },
-  ],
-};
-
-const linearKitchen: LayoutSpec = {
-  id: "LINEAR",
-  name: "Disappearing Linear",
-  summary:
-    "Concealed functional wall with a monolithic island for minimal visual clutter.",
-  defaultScale: MILLIMETER_TO_PIXEL,
-  rooms: [
-    {
-      id: "primary",
-      label: "Linear Kitchen",
-      width: 5200,
-      depth: 3600,
-      origin: { x: 0, y: 0 },
-      placements: [
-        { moduleId: "CSDP", x: 200, y: 0, note: "Ends at 1456" },
-        { moduleId: "CAFI", x: 1456, y: 0 },
-        { moduleId: "CAMI", x: 2056, y: 0 },
-        { moduleId: "CAOV", x: 2656, y: 0 },
-        { moduleId: "BARA", x: 3256, y: 0 },
-        { moduleId: "CSSP", x: 4456, y: 0 },
-        { moduleId: "ISNA", x: 1400, y: 2200 },
-        { moduleId: "ISNA", x: 2800, y: 2200 },
-      ],
-    },
-  ],
-};
-
-export const LAYOUTS: Record<LayoutId, LayoutSpec> = {
-  TWO_X_KITCHEN: twoXKitchen,
-  DUAL_ISLAND: dualIsland,
-  WOKE_KITCHEN: wokeKitchen,
-  LINEAR: linearKitchen,
-};
-
-export const LAYOUT_LIST = Object.values(LAYOUTS);
 export const LAYOUT_IDS = Object.keys(LAYOUTS) as LayoutId[];
+export const LAYOUT_LIST = LAYOUT_IDS.map((layoutId) => LAYOUTS[layoutId]);
 
-export type MaterialKey = keyof typeof materialsManifest;
+export function getLayoutById(id: LayoutId | CanonicalLayoutId): LayoutSpec {
+  const canonical = canonicalLayoutId(id);
+  const legacy = legacyLayoutId(canonical);
+  const spec = LAYOUTS[legacy];
+  if (!spec) {
+    throw new Error(`Unknown layout id: ${id}`);
+  }
+  return spec;
+}
 
-export interface MaterialDefinition {
+export function toCanonicalLayoutId(
+  id: LayoutId | CanonicalLayoutId,
+): CanonicalLayoutId {
+  return canonicalLayoutId(id);
+}
+
+export type MaterialDefinition = {
   token: string;
   hex: string;
   img: string;
   jpg: string;
   multiplier: number;
   repeatUV?: [number, number];
-}
+};
 
-export interface MaterialManifest {
+export type MaterialManifest = {
   doors: Record<string, MaterialDefinition>;
   tops: Record<string, MaterialDefinition>;
-}
+};
 
 export const MATERIAL_MANIFEST = materialsManifest as MaterialManifest;
 
-export const DOOR_FINISH_IDS = Object.keys(
-  MATERIAL_MANIFEST.doors,
-) as string[];
-export const TOP_FINISH_IDS = Object.keys(MATERIAL_MANIFEST.tops) as string[];
-
-export type DoorFinishId = (typeof DOOR_FINISH_IDS)[number];
-export type TopFinishId = (typeof TOP_FINISH_IDS)[number];
+export type DoorManifestId = keyof MaterialManifest["doors"];
+export type TopManifestId = keyof MaterialManifest["tops"];
 
 export interface FinishSelection {
-  door: DoorFinishId;
-  top: TopFinishId;
+  door: DoorManifestId;
+  top: TopManifestId;
 }
 
-export function getModuleById(moduleId: ModuleId): ModuleSpec {
-  const moduleSpec = MODULES[moduleId];
-  if (!moduleSpec) {
-    throw new Error(`Unknown module id: ${moduleId}`);
+export const DOOR_FINISH_IDS = Object.keys(
+  MATERIAL_MANIFEST.doors,
+) as DoorManifestId[];
+export const TOP_FINISH_IDS = Object.keys(
+  MATERIAL_MANIFEST.tops,
+) as TopManifestId[];
+
+const DOOR_TOKEN_BY_MANIFEST = Object.fromEntries(
+  DOOR_OPTIONS.map((option) => [option.manifestId, option.token]),
+) as Record<string, DoorColor>;
+
+const DOOR_MANIFEST_BY_TOKEN = Object.fromEntries(
+  DOOR_OPTIONS.map((option) => [option.token, option.manifestId]),
+) as Record<DoorColor, string>;
+
+const TOP_TOKEN_BY_MANIFEST = Object.fromEntries(
+  TOP_OPTIONS.map((option) => [option.manifestId, option.token]),
+) as Record<string, TopColor>;
+
+const TOP_MANIFEST_BY_TOKEN = Object.fromEntries(
+  TOP_OPTIONS.map((option) => [option.token, option.manifestId]),
+) as Record<TopColor, string>;
+
+export function doorManifestIdToToken(manifestId: DoorManifestId): DoorColor {
+  const token = DOOR_TOKEN_BY_MANIFEST[manifestId];
+  if (!token) {
+    throw new Error(`Unknown door manifest id: ${manifestId}`);
   }
-  return moduleSpec;
+  return token;
 }
 
-export function getLayoutById(layoutId: LayoutId): LayoutSpec {
-  const layout = LAYOUTS[layoutId];
-  if (!layout) {
-    throw new Error(`Unknown layout id: ${layoutId}`);
+export function doorTokenToManifestId(token: DoorColor): DoorManifestId {
+  const manifestId = DOOR_MANIFEST_BY_TOKEN[token];
+  if (!manifestId) {
+    throw new Error(`Unknown door token: ${token}`);
   }
-  return layout;
+  return manifestId as DoorManifestId;
 }
 
+export function topManifestIdToToken(manifestId: TopManifestId): TopColor {
+  const token = TOP_TOKEN_BY_MANIFEST[manifestId];
+  if (!token) {
+    throw new Error(`Unknown top manifest id: ${manifestId}`);
+  }
+  return token;
+}
+
+export function topTokenToManifestId(token: TopColor): TopManifestId {
+  const manifestId = TOP_MANIFEST_BY_TOKEN[token];
+  if (!manifestId) {
+    throw new Error(`Unknown top token: ${token}`);
+  }
+  return manifestId as TopManifestId;
+}
+
+export function resolveDoorMaterial(
+  manifestId: DoorManifestId,
+): MaterialDefinition {
+  const material = MATERIAL_MANIFEST.doors[manifestId];
+  if (!material) {
+    throw new Error(`Unknown door material: ${manifestId}`);
+  }
+  return material;
+}
+
+export function resolveTopMaterial(
+  manifestId: TopManifestId,
+): MaterialDefinition {
+  const material = MATERIAL_MANIFEST.tops[manifestId];
+  if (!material) {
+    throw new Error(`Unknown countertop material: ${manifestId}`);
+  }
+  return material;
+}
+
+export function toDesignFinishes(selection: FinishSelection): {
+  door: DoorColor;
+  top: TopColor;
+} {
+  return {
+    door: doorManifestIdToToken(selection.door),
+    top: topManifestIdToToken(selection.top),
+  };
+}
+
+export function fromDesignFinishes(door: DoorColor, top: TopColor): FinishSelection {
+  return {
+    door: doorTokenToManifestId(door),
+    top: topTokenToManifestId(top),
+  };
+}
+
+export const DOOR_TOKENS = DOOR_OPTIONS.map((option) => option.token) as DoorColor[];
+export const TOP_TOKENS = TOP_OPTIONS.map((option) => option.token) as TopColor[];
+
+import materialsManifest from "../public/materials/manifest.json";
+
+export const MIN_LAYOUT_SELECTION = 1;
+export const MAX_LAYOUT_SELECTION = 4;
+export const VARIANTS_PER_LAYOUT = 4;
+
+export * from "@repo/design-engine";
+export type { DesignRoom as LayoutRoom, DesignPlacement as ModulePlacement } from "@repo/design-engine";
+
+export type MaterialDefinition = {
+  token: string;
+  hex: string;
+  img: string;
+  jpg: string;
+  multiplier: number;
+  repeatUV?: [number, number];
+};
+
+export type MaterialManifest = {
+  doors: Record<string, MaterialDefinition>;
+  tops: Record<string, MaterialDefinition>;
+};
+
+export const MATERIAL_MANIFEST = materialsManifest as MaterialManifest;
+
+const DOOR_TOKEN_TO_MANIFEST: Record<import("@repo/design-engine").DoorColor, string> = {} as Record<
+  import("@repo/design-engine").DoorColor,
+  string
+>;
+const TOP_TOKEN_TO_MANIFEST: Record<import("@repo/design-engine").TopColor, string> = {} as Record<
+  import("@repo/design-engine").TopColor,
+  string
+>;
+
+for (const [manifestId, definition] of Object.entries(MATERIAL_MANIFEST.doors)) {
+  const token = definition.token.replace(/^\$/, "");
+  DOOR_TOKEN_TO_MANIFEST[token as import("@repo/design-engine").DoorColor] = manifestId;
+}
+
+for (const [manifestId, definition] of Object.entries(MATERIAL_MANIFEST.tops)) {
+  const token = definition.token.replace(/^\$/, "");
+  TOP_TOKEN_TO_MANIFEST[token as import("@repo/design-engine").TopColor] = manifestId;
+}
+
+export const DOOR_MANIFEST_IDS = Object.keys(MATERIAL_MANIFEST.doors) as string[];
+export const TOP_MANIFEST_IDS = Object.keys(MATERIAL_MANIFEST.tops) as string[];
+
+export function doorTokenToManifestEntry(token: import("@repo/design-engine").DoorColor): MaterialDefinition {
+  const manifestId = DOOR_TOKEN_TO_MANIFEST[token];
+  if (!manifestId) {
+    throw new Error(`Unknown door token: ${token}`);
+  }
+  return MATERIAL_MANIFEST.doors[manifestId];
+}
+
+export function topTokenToManifestEntry(token: import("@repo/design-engine").TopColor): MaterialDefinition {
+  const manifestId = TOP_TOKEN_TO_MANIFEST[token];
+  if (!manifestId) {
+    throw new Error(`Unknown top token: ${token}`);
+  }
+  return MATERIAL_MANIFEST.tops[manifestId];
+}
+
+export function manifestDoorIdToToken(manifestId: string): import("@repo/design-engine").DoorColor {
+  const entry = Object.entries(DOOR_TOKEN_TO_MANIFEST).find(([, value]) => value === manifestId);
+  if (!entry) {
+    throw new Error(`Unknown door manifest identifier: ${manifestId}`);
+  }
+  return entry[0] as import("@repo/design-engine").DoorColor;
+}
+
+export function manifestTopIdToToken(manifestId: string): import("@repo/design-engine").TopColor {
+  const entry = Object.entries(TOP_TOKEN_TO_MANIFEST).find(([, value]) => value === manifestId);
+  if (!entry) {
+    throw new Error(`Unknown top manifest identifier: ${manifestId}`);
+  }
+  return entry[0] as import("@repo/design-engine").TopColor;
+}
