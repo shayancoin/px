@@ -7,6 +7,7 @@ import {
   LAYOUTS,
   MAX_LAYOUT_SELECTION,
   MIN_LAYOUT_SELECTION,
+  VARIANTS_PER_LAYOUT,
   MODULE_IDS,
   MODULES,
   TOP_FINISH_IDS,
@@ -127,6 +128,8 @@ type NormalizedPlacement = {
   note?: string;
 };
 
+type LLMStrategy = "responses" | "chat.completions" | "deterministic-fallback";
+
 type GeneratedVariant = {
   layoutId: LayoutId;
   variantIndex: number;
@@ -134,6 +137,7 @@ type GeneratedVariant = {
   placements: NormalizedPlacement[];
   rationale: string;
   pricing: ReturnType<typeof calculatePricing>;
+  llmStrategy?: LLMStrategy;
 };
 
 const SYSTEM_PROMPT = [
@@ -285,6 +289,101 @@ function validateModuleCounts(
   }
 }
 
+async function callLLMWithFallback(
+  openai: ReturnType<typeof getOpenAIClient>,
+  layout: typeof LAYOUTS[LayoutId],
+  variantIndex: number,
+  finishes: FinishSelection,
+): Promise<{
+  text: string;
+  strategy: Exclude<LLMStrategy, "deterministic-fallback">;
+}> {
+  const systemContent = SYSTEM_PROMPT;
+  const userContent = buildUserPrompt(layout, variantIndex, finishes);
+
+  return withOpenAIRetry(async () => {
+    try {
+      const response = await openai.responses.create({
+        model: OPENAI_MODEL,
+        input: [
+          {
+            role: "system",
+            content: systemContent,
+          },
+          {
+            role: "user",
+            content: userContent,
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: FUSE_JSON_SCHEMA,
+        },
+      });
+
+      const textOutput = response.output_text;
+      if (!textOutput) {
+        throw new Error("OpenAI response did not include JSON output.");
+      }
+
+      return {
+        text: textOutput,
+        strategy: "responses" as const,
+      };
+    } catch (primaryError) {
+      console.warn(
+        "[llm/fuse] responses.create failed; falling back to chat.completions.create",
+        primaryError,
+      );
+
+      const fallback = await openai.chat.completions.create({
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: systemContent,
+          },
+          {
+            role: "user",
+            content: userContent,
+          },
+        ],
+        response_format: {
+          type: "json_object",
+        },
+      });
+
+      const fallbackText = fallback.choices?.[0]?.message?.content?.trim();
+      if (!fallbackText) {
+        throw new Error("Chat Completions fallback did not include content.");
+      }
+
+      return {
+        text: fallbackText,
+        strategy: "chat.completions" as const,
+      };
+    }
+  });
+}
+
+function buildDeterministicPlacements(
+  layout: typeof LAYOUTS[LayoutId],
+): NormalizedPlacement[] {
+  return layout.rooms.flatMap((room) =>
+    room.placements.map((placement) => ({
+      roomId: room.id,
+      moduleId: placement.moduleId as ModuleId,
+      x: Math.round(placement.x),
+      y: Math.round(placement.y),
+      rotation:
+        placement.rotation !== undefined
+          ? Math.round(placement.rotation)
+          : undefined,
+      note: placement.note ?? undefined,
+    })),
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -327,6 +426,80 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+
+    if (!hasOpenAIKey) {
+      const layoutResults: GeneratedVariant[] = [];
+
+      for (const layoutId of layouts) {
+        const layout = LAYOUTS[layoutId];
+        if (!layout) {
+          throw new Error(`Layout configuration missing for ${layoutId}.`);
+        }
+
+        const deterministicPlacements = buildDeterministicPlacements(layout);
+        const pricing = calculatePricing(
+          deterministicPlacements.map((placement) => ({
+            moduleId: placement.moduleId,
+          })),
+          finishes,
+        );
+
+        for (
+          let variantIndex = 0;
+          variantIndex < VARIANTS_PER_LAYOUT;
+          variantIndex += 1
+        ) {
+          const variantRef = designRef
+            .collection("variants")
+            .doc(`${layoutId}-fallback-v${variantIndex + 1}-${crypto.randomUUID()}`);
+
+          const rationale = `Deterministic fallback variant ${variantIndex + 1} without OpenAI key.`;
+
+          await variantRef.set({
+            designId,
+            layoutId,
+            layoutName: layout.name,
+            variantIndex: variantIndex + 1,
+            ownerUid,
+            finishes,
+            placements: deterministicPlacements,
+            rationale,
+            pricing,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            model: "deterministic-fallback",
+            llmStrategy: "deterministic-fallback",
+          });
+
+          layoutResults.push({
+            layoutId,
+            variantIndex: variantIndex + 1,
+            variantId: variantRef.id,
+            placements: deterministicPlacements.map((placement) => ({ ...placement })),
+            rationale,
+            pricing,
+            llmStrategy: "deterministic-fallback",
+          });
+        }
+      }
+
+      await designRef.set(
+        {
+          lastGeneratedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      return NextResponse.json(
+        {
+          designId,
+          variants: layoutResults,
+        },
+        { status: 200 },
+      );
+    }
+
     const openai = getOpenAIClient();
     const semaphore = new Semaphore(8);
 
@@ -340,34 +513,16 @@ export async function POST(request: NextRequest) {
       const expectedCounts = createModuleCountMap(layout);
 
       const variants = await Promise.all(
-        Array.from({ length: 4 }, (_unused, variantIndex) =>
+        Array.from({ length: VARIANTS_PER_LAYOUT }, (_unused, variantIndex) =>
           runWithSemaphore(semaphore, async () => {
-            const response = await withOpenAIRetry(() =>
-              openai.responses.create({
-                model: OPENAI_MODEL,
-                input: [
-                  {
-                    role: "system",
-                    content: SYSTEM_PROMPT,
-                  },
-                  {
-                    role: "user",
-                    content: buildUserPrompt(layout, variantIndex, finishes),
-                  },
-                ],
-                response_format: {
-                  type: "json_schema",
-                  json_schema: FUSE_JSON_SCHEMA,
-                },
-              }),
+            const llmResult = await callLLMWithFallback(
+              openai,
+              layout,
+              variantIndex,
+              finishes,
             );
 
-            const textOutput = response.output_text;
-            if (!textOutput) {
-              throw new Error("OpenAI response did not include JSON output.");
-            }
-
-            const parsed = llmResponseSchema.parse(JSON.parse(textOutput));
+            const parsed = llmResponseSchema.parse(JSON.parse(llmResult.text));
             const normalizedPlacements = normalisePlacements(
               layout,
               parsed.placements,
@@ -399,6 +554,7 @@ export async function POST(request: NextRequest) {
               createdAt: FieldValue.serverTimestamp(),
               updatedAt: FieldValue.serverTimestamp(),
               model: OPENAI_MODEL,
+              llmStrategy: llmResult.strategy,
             });
 
             return {
@@ -408,6 +564,7 @@ export async function POST(request: NextRequest) {
               placements: normalizedPlacements,
               rationale: parsed.rationale,
               pricing,
+              llmStrategy: llmResult.strategy,
             } satisfies GeneratedVariant;
           }),
         ),
