@@ -27,7 +27,9 @@ import {
   LAYOUT_OPTIONS,
 } from "@repo/design-engine";
 
-const ARTIFACT_ROOT = join(process.cwd(), "artifacts", "worktrees");
+const ARTIFACT_ROOT =
+  process.env.WORKTREE_DIR ??
+  (process.env.VERCEL ? "/tmp/worktrees" : "artifacts/worktrees");
 
 const ensureDir = (directory: string) => mkdirSync(directory, { recursive: true });
 
