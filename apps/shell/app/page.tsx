@@ -11,7 +11,9 @@ import {
   doorTokenToManifestId,
   legacyLayoutId,
   topTokenToManifestId,
+  type DoorColor,
   type LayoutId,
+  type TopColor,
 } from "@/domain/spec";
 
 export default function LandingPage() {
@@ -76,7 +78,7 @@ export default function LandingPage() {
         typeof parsed.door === "string"
           ? (() => {
               try {
-                return doorTokenToManifestId(parsed.door);
+                return doorTokenToManifestId(parsed.door as DoorColor);
               } catch (doorError) {
                 console.warn("Unrecognised door token from ?state=", doorError);
                 return null;
@@ -88,7 +90,7 @@ export default function LandingPage() {
         typeof parsed.top === "string"
           ? (() => {
               try {
-                return topTokenToManifestId(parsed.top);
+                return topTokenToManifestId(parsed.top as TopColor);
               } catch (topError) {
                 console.warn("Unrecognised top token from ?state=", topError);
                 return null;

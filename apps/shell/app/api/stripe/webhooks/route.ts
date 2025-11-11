@@ -6,14 +6,6 @@ import { getAdminFirestore } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-if (!webhookSecret) {
-  throw new Error(
-    "STRIPE_WEBHOOK_SECRET is undefined. Configure the webhook signing secret.",
-  );
-}
-
 const stripe = getStripeClient();
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
@@ -105,6 +97,18 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.text();
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.warn("[stripe/webhooks] STRIPE_WEBHOOK_SECRET not configured; skipping verification.");
+    return NextResponse.json({ received: true, note: "Webhook secret not configured." }, { status: 200 });
+  }
+
+  const stripe = getStripeClient();
+  if (!stripe) {
+    console.warn("[stripe/webhooks] STRIPE_SECRET_KEY not configured; skipping verification.");
+    return NextResponse.json({ received: true, note: "Stripe secret not configured." }, { status: 200 });
+  }
 
   let event: Stripe.Event;
   try {

@@ -27,6 +27,7 @@ import {
   type LegacyLayoutId,
   type ModuleCategory,
   type ModuleId,
+  type ModulePlacement,
   type ModuleSpec,
   type TopColor,
 } from "@repo/design-engine";
@@ -48,7 +49,14 @@ export {
 
 export { getLayoutById as getCanonicalLayoutById } from "@repo/design-engine";
 
-export type { ModuleCategory, ModuleId, ModuleSpec };
+export type {
+  DoorColor,
+  ModuleCategory,
+  ModuleId,
+  ModulePlacement,
+  ModuleSpec,
+  TopColor,
+};
 
 export const MIN_LAYOUT_SELECTION = 1;
 export const MAX_LAYOUT_SELECTION = 4;
@@ -191,4 +199,3 @@ export function fromDesignFinishes(door: DoorColor, top: TopColor): FinishSelect
     top: topTokenToManifestId(top),
   };
 }
-*** End Patch

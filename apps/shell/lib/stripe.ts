@@ -4,14 +4,14 @@ const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2024-06-20";
 
 let client: Stripe | null = null;
 
-export function getStripeClient(): Stripe {
+export function getStripeClient(): Stripe | null {
   if (client) {
     return client;
   }
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    throw new Error("Missing STRIPE_SECRET_KEY environment variable.");
+    return null;
   }
 
   client = new Stripe(secretKey, {

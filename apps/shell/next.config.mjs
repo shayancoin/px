@@ -7,16 +7,20 @@ const nextConfig = {
     esmExternals: "loose",
     externalDir: true,
   },
-  transpilePackages: ["@repo/design-engine", "@repo/generation-engine"],
+  transpilePackages: [
+    "@repo/design-engine",
+    "@repo/generation-engine",
+    "konva",
+    "react-konva",
+  ],
   webpack: (config, { webpack }) => {
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {
       ...(config.resolve.alias ?? {}),
       canvas: false,
-      konva: "konva/lib/index-esm",
+      "konva$": "konva/lib/index.js",
       "konva/lib/index-node": path.resolve("./config/konva-node-stub.js"),
       "konva/lib/index-node.js": path.resolve("./config/konva-node-stub.js"),
-      "react-konva": "react-konva/lib/ReactKonvaCore",
     };
     config.resolve.fallback = {
       ...(config.resolve.fallback ?? {}),

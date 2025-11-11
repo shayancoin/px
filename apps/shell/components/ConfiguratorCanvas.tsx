@@ -18,7 +18,7 @@ import {
   type LayoutRoom,
   type ModulePlacement,
   type ModuleSpec,
-  type TopFinishId,
+  type TopManifestId,
   MILLIMETER_TO_PIXEL,
 } from "@/domain/spec";
 
@@ -61,7 +61,7 @@ function getModuleFootprint(module: ModuleSpec, scale: number) {
 const DEFAULT_DOOR_COLOR = "#777777";
 const DEFAULT_TOP_COLOR = "#CCCCCC";
 
-function useTopPattern(topFinishId: TopFinishId | undefined) {
+function useTopPattern(topFinishId: TopManifestId | undefined) {
   const material = topFinishId
     ? MATERIAL_MANIFEST.tops[topFinishId]
     : undefined;
@@ -279,7 +279,7 @@ export function ConfiguratorCanvas({
                 x={MODULE_LABEL_PADDING}
                 y={MODULE_LABEL_PADDING}
                 width={widthPx - MODULE_LABEL_PADDING * 2}
-                text={module.label}
+                text={moduleSpec.label}
                 fill="#ffffff"
                 fontStyle="600"
                 fontSize={14}
@@ -290,7 +290,7 @@ export function ConfiguratorCanvas({
                 x={MODULE_LABEL_PADDING}
                 y={MODULE_LABEL_PADDING + 18}
                 width={widthPx - MODULE_LABEL_PADDING * 2}
-                text={`${module.width}×${module.depth}mm`}
+                text={`${moduleSpec.width}×${moduleSpec.depth}mm`}
                 fill="#d1d5db"
                 fontSize={12}
                 listening={false}

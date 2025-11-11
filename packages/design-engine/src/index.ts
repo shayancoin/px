@@ -179,7 +179,6 @@ const LEGACY_BY_CANONICAL: Record<LayoutId, LegacyLayoutId> = {
 
 const LAYOUT_ALIASES: Record<LayoutId | LegacyLayoutId, LayoutId> = {
   BACK_KITCHEN: "BACK_KITCHEN",
-  DUAL_ISLAND: "DUAL_ISLAND",
   BROKEN_PLAN: "BROKEN_PLAN",
   DISAPPEARING_LINEAR: "DISAPPEARING_LINEAR",
   ...CANONICAL_BY_LEGACY,
@@ -1059,7 +1058,8 @@ function addPlacement(design: Design, placement: LayoutPlacementDefinition, sour
   if (!module) {
     throw new Error(`Unknown module ${placement.moduleId} for addition`);
   }
-  const key = placement.key ?? createPlacementKey(roomId, placement.moduleId, room.placements.length);
+  const key =
+    placement.key ?? createPlacementKey(room.id, placement.moduleId, room.placements.length);
   room.placements.push({
     id: `${design.layout}-${room.id}-${key}`,
     key,

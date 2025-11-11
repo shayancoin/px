@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { generateAll } from "@repo/generation-engine";
-import { LAYOUT_IDS, type LayoutId } from "@/domain/spec";
+import { LAYOUT_IDS, canonicalLayoutId, type LayoutId } from "@/domain/spec";
 
 export const runtime = "nodejs";
 
@@ -35,20 +35,39 @@ export async function POST(request: NextRequest) {
 
     const { layouts, perLayout, budget, baseDoor, baseTop, useLLM } = parsed.data;
 
+    let normalizedLayouts: string[] | undefined;
+    try {
+      normalizedLayouts = layouts
+        ? layouts.map((layout) => canonicalLayoutId(layout))
+        : undefined;
+    } catch (layoutError) {
+      const message =
+        layoutError instanceof Error ? layoutError.message : "Unsupported layout id.";
+      return NextResponse.json(
+        {
+          ok: false,
+          error: message,
+        },
+        { status: 422 },
+      );
+    }
+
+    const llm = Boolean(useLLM && process.env.OPENAI_API_KEY);
+
     const result = await generateAll({
-      layouts,
+      layouts: normalizedLayouts,
       perLayout,
       budget: budget ?? null,
       baseDoor,
       baseTop,
-      useLLM,
+      useLLM: llm,
     });
 
     return NextResponse.json({
       ok: true,
       run_id: result.run_id,
       results: result.results,
-      useLLM: Boolean(useLLM && process.env.OPENAI_API_KEY),
+      useLLM: llm,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
