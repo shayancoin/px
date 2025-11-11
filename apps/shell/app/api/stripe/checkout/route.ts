@@ -82,6 +82,12 @@ export async function POST(request: NextRequest) {
       `${baseUrl}/configurator?designId=${designId}&checkout=cancelled`;
 
     const stripe = getStripeClient();
+    if (!stripe) {
+      return NextResponse.json(
+        { error: "Stripe integration not configured." },
+        { status: 503 },
+      );
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],

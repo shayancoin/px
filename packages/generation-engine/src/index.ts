@@ -22,7 +22,7 @@ import {
   type LayoutId as CanonicalLayoutId,
   type LegacyLayoutId,
   type OptimizationResult,
-  type OptimizationOp,
+  type OptimizationOperation,
   type TopColor,
   LAYOUT_OPTIONS,
 } from "@repo/design-engine";
@@ -31,10 +31,13 @@ const ARTIFACT_ROOT = join(process.cwd(), "artifacts", "worktrees");
 
 const ensureDir = (directory: string) => mkdirSync(directory, { recursive: true });
 
-const toCsv = <T extends Record<string, unknown>>(rows: T[]): string => {
+const toCsv = <T>(rows: T[]): string => {
   if (!rows.length) return "";
-  const headers = Object.keys(rows[0]);
-  const lines = rows.map((row) => headers.map((key) => `${row[key] ?? ""}`).join(","));
+  const headers = Object.keys(rows[0] as Record<string, unknown>);
+  const lines = rows.map((row) => {
+    const record = row as Record<string, unknown>;
+    return headers.map((key) => `${record[key] ?? ""}`).join(",");
+  });
   return [headers.join(","), ...lines].join("\n");
 };
 
@@ -77,7 +80,7 @@ const writeVariantArtifacts = (
   layout: CanonicalLayoutId,
   variantIndex: number,
 ) => {
-  const legacy = design.legacyLayoutId;
+  const legacy = legacyLayoutId(layout);
   const suffix = nanoid(6);
   const variantId = `${legacy}-${runId}-v${variantIndex + 1}-${suffix}`;
   const layoutDir = join(ARTIFACT_ROOT, layout);
@@ -148,7 +151,7 @@ export type VariantSummary = {
   layout_canonical: CanonicalLayoutId;
   price_usd: number;
   ops_count: number;
-  operations: OptimizationOp[];
+  operations: OptimizationOperation[];
   files: {
     root: string;
     designJson: string;

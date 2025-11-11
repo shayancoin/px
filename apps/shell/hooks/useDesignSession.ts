@@ -16,7 +16,7 @@ import { useAuth } from "@/components/AuthGate";
 import { getFirestoreClient } from "@/lib/firebase/client";
 import { useDesignStore, type VariantPlacement } from "@/stores/design";
 import type { VariantRecord } from "@/stores/design";
-import type { LayoutId } from "@/domain/spec";
+import type { LayoutId, ModuleId } from "@/domain/spec";
 import type { FinishSelection } from "@/domain/spec";
 
 type DesignDocument = {
@@ -60,7 +60,7 @@ function convertPlacements(
       placement.id ??
       `${designId}-${variantId}-${placement.moduleId}-${index}`,
     roomId: placement.roomId,
-    moduleId: placement.moduleId,
+    moduleId: placement.moduleId as ModuleId,
     x: Math.round(placement.x),
     y: Math.round(placement.y),
     rotation: placement.rotation,

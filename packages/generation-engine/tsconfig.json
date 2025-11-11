@@ -8,13 +8,22 @@
     "composite": true,
     "skipLibCheck": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "target": "ES2022",
     "resolveJsonModule": true,
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@repo/design-engine": ["../design-engine/dist/index"]
+    }
   },
   "include": [
     "src/**/*"
+  ],
+  "references": [
+    {
+      "path": "../design-engine"
+    }
   ]
 }
 

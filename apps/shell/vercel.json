@@ -1,10 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "installCommand": "npm ci",
+  "installCommand": "pnpm -w i",
+  "buildCommand": "pnpm -w --filter @repo/design-engine build && pnpm -w --filter @repo/generation-engine build && pnpm --filter ./apps/shell build",
   "outputDirectory": ".next",
-  "devCommand": "npm run dev",
+  "devCommand": "pnpm --filter ./apps/shell dev",
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60,
