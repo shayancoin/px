@@ -13,6 +13,9 @@ const nextConfig = {
     "konva",
     "react-konva",
   ],
+  env: {
+    LLM_PROVIDER: process.env.LLM_PROVIDER ?? "gemini",
+  },
   webpack: (config, { webpack }) => {
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {

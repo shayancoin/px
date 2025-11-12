@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const llm = Boolean(useLLM && process.env.OPENAI_API_KEY);
+    const llm = Boolean(useLLM && process.env.GEMINI_API_KEY);
 
     const result = await generateAll({
       layouts: normalizedLayouts,

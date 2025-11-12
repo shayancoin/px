@@ -8,7 +8,6 @@ import {
   MAX_LAYOUT_SELECTION,
   MIN_LAYOUT_SELECTION,
   VARIANTS_PER_LAYOUT,
-  MODULE_IDS,
   MODULES,
   TOP_FINISH_IDS,
   type FinishSelection,
@@ -18,8 +17,8 @@ import {
 } from "@/domain/spec";
 import { calculatePricing } from "@/lib/pricing";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/admin";
-import { getOpenAIClient, OPENAI_MODEL, withOpenAIRetry } from "@/lib/openai";
 import { runWithSemaphore, Semaphore } from "@/lib/concurrency";
+import { callGeminiWithSchema } from "@/lib/llm/providers/gemini";
 
 export const runtime = "nodejs";
 
@@ -54,70 +53,6 @@ const llmResponseSchema = z.object({
   rationale: z.string().min(1),
 });
 
-const JSON_SCHEMA_NAME = "KitchenLayoutPlan";
-
-const FUSE_JSON_SCHEMA = {
-  name: JSON_SCHEMA_NAME,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["placements", "rationale"],
-    properties: {
-      placements: {
-        type: "array",
-        minItems: 1,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["roomId", "type", "x", "y"],
-          properties: {
-            roomId: {
-              type: "string",
-              description:
-                "Identifier of the room the module belongs to (e.g. show, prep, primary).",
-            },
-            type: {
-              type: "string",
-              enum: MODULE_IDS,
-              description: "Module ID (e.g. CAFI, BARA) from the allowed list.",
-            },
-            x: {
-              type: "number",
-              description:
-                "Horizontal coordinate in millimetres from the global origin (top-left).",
-            },
-            y: {
-              type: "number",
-              description:
-                "Vertical coordinate in millimetres from the global origin (top-left).",
-            },
-            rotation: {
-              type: "number",
-              description:
-                "Optional rotation in degrees (0, 90, 180, 270). Defaults to 0.",
-            },
-            option: {
-              type: "string",
-              description:
-                "Optional cabinet option such as handle-less, integrated appliance, etc.",
-            },
-            note: {
-              type: "string",
-              description:
-                "Optional descriptive note explaining the cabinet placement intent.",
-            },
-          },
-        },
-      },
-      rationale: {
-        type: "string",
-        description:
-          "Short explanation (≤120 words) describing optimisation decisions.",
-      },
-    },
-  },
-};
-
 type NormalizedPlacement = {
   roomId: string;
   moduleId: ModuleId;
@@ -128,7 +63,10 @@ type NormalizedPlacement = {
   note?: string;
 };
 
-type LLMStrategy = "responses" | "chat.completions" | "deterministic-fallback";
+type LLMStrategy =
+  | "responses-schema"
+  | "tool-call+schema"
+  | "deterministic-fallback";
 
 type GeneratedVariant = {
   layoutId: LayoutId;
@@ -289,83 +227,6 @@ function validateModuleCounts(
   }
 }
 
-async function callLLMWithFallback(
-  openai: ReturnType<typeof getOpenAIClient>,
-  layout: typeof LAYOUTS[LayoutId],
-  variantIndex: number,
-  finishes: FinishSelection,
-): Promise<{
-  text: string;
-  strategy: Exclude<LLMStrategy, "deterministic-fallback">;
-}> {
-  const systemContent = SYSTEM_PROMPT;
-  const userContent = buildUserPrompt(layout, variantIndex, finishes);
-
-  return withOpenAIRetry(async () => {
-    try {
-      const response = await openai.responses.create({
-        model: OPENAI_MODEL,
-        input: [
-          {
-            role: "system",
-            content: systemContent,
-          },
-          {
-            role: "user",
-            content: userContent,
-          },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: FUSE_JSON_SCHEMA,
-        },
-      });
-
-      const textOutput = response.output_text;
-      if (!textOutput) {
-        throw new Error("OpenAI response did not include JSON output.");
-      }
-
-      return {
-        text: textOutput,
-        strategy: "responses" as const,
-      };
-    } catch (primaryError) {
-      console.warn(
-        "[llm/fuse] responses.create failed; falling back to chat.completions.create",
-        primaryError,
-      );
-
-      const fallback = await openai.chat.completions.create({
-        model: OPENAI_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: systemContent,
-          },
-          {
-            role: "user",
-            content: userContent,
-          },
-        ],
-        response_format: {
-          type: "json_object",
-        },
-      });
-
-      const fallbackText = fallback.choices?.[0]?.message?.content?.trim();
-      if (!fallbackText) {
-        throw new Error("Chat Completions fallback did not include content.");
-      }
-
-      return {
-        text: fallbackText,
-        strategy: "chat.completions" as const,
-      };
-    }
-  });
-}
-
 function buildDeterministicPlacements(
   layout: typeof LAYOUTS[LayoutId],
 ): NormalizedPlacement[] {
@@ -426,9 +287,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+    const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY?.trim());
 
-    if (!hasOpenAIKey) {
+    if (!hasGeminiKey) {
       const layoutResults: GeneratedVariant[] = [];
 
       for (const layoutId of layouts) {
@@ -454,7 +315,7 @@ export async function POST(request: NextRequest) {
             .collection("variants")
             .doc(`${layoutId}-fallback-v${variantIndex + 1}-${crypto.randomUUID()}`);
 
-          const rationale = `Deterministic fallback variant ${variantIndex + 1} without OpenAI key.`;
+          const rationale = `Deterministic fallback variant ${variantIndex + 1} without Gemini key.`;
 
           await variantRef.set({
             designId,
@@ -500,7 +361,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const openai = getOpenAIClient();
     const semaphore = new Semaphore(8);
 
     const layoutResults: GeneratedVariant[] = [];
@@ -515,14 +375,15 @@ export async function POST(request: NextRequest) {
       const variants = await Promise.all(
         Array.from({ length: VARIANTS_PER_LAYOUT }, (_unused, variantIndex) =>
           runWithSemaphore(semaphore, async () => {
-            const llmResult = await callLLMWithFallback(
-              openai,
-              layout,
-              variantIndex,
+            const llmResult = await callGeminiWithSchema({
+              systemPrompt: SYSTEM_PROMPT,
+              userPrompt: buildUserPrompt(layout, variantIndex, finishes),
               finishes,
-            );
+            });
 
-            const parsed = llmResponseSchema.parse(JSON.parse(llmResult.text));
+            const parsed = llmResponseSchema.parse(
+              JSON.parse(llmResult.jsonText),
+            );
             const normalizedPlacements = normalisePlacements(
               layout,
               parsed.placements,
@@ -553,7 +414,7 @@ export async function POST(request: NextRequest) {
               pricing,
               createdAt: FieldValue.serverTimestamp(),
               updatedAt: FieldValue.serverTimestamp(),
-              model: OPENAI_MODEL,
+              model: llmResult.model,
               llmStrategy: llmResult.strategy,
             });
 

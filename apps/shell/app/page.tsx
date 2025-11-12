@@ -143,7 +143,7 @@ export default function LandingPage() {
         <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.4em] text-white/40">
           <span>Auth: Firebase</span>
           <span>Design: Konva 2D</span>
-          <span>AI: OpenAI Parallel Worktrees</span>
+          <span>AI: Gemini Parallel Worktrees</span>
           <span>Payments: Stripe Checkout</span>
         </div>
       </section>

@@ -12,7 +12,8 @@
     }
   },
   "env": {
-    "NEXT_PUBLIC_DEMO_MODE": "1"
+    "NEXT_PUBLIC_DEMO_MODE": "1",
+    "LLM_PROVIDER": "gemini"
   }
 }
 
