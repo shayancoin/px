@@ -5,6 +5,8 @@ import { getStripeClient } from "@/lib/stripe";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 15;
+export const preferredRegion = ["iad1"];
 
 const requestSchema = z.object({
   designId: z.string().trim().min(1),

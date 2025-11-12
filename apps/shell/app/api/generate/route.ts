@@ -5,6 +5,8 @@ import { generateAll } from "@repo/generation-engine";
 import { LAYOUT_IDS, canonicalLayoutId, type LayoutId } from "@/domain/spec";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
+export const preferredRegion = ["iad1"];
 
 const layoutEnum = z.enum(LAYOUT_IDS as [LayoutId, ...LayoutId[]]).or(z.string());
 

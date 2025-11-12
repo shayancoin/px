@@ -5,12 +5,6 @@
   "buildCommand": "pnpm -w --filter @repo/design-engine build && pnpm -w --filter @repo/generation-engine build && pnpm --filter ./apps/shell build",
   "outputDirectory": ".next",
   "devCommand": "pnpm --filter ./apps/shell dev",
-  "functions": {
-    "app/api/**/route.ts": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  },
   "env": {
     "NEXT_PUBLIC_DEMO_MODE": "1",
     "LLM_PROVIDER": "gemini"
