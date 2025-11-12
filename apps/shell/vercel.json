@@ -6,7 +6,7 @@
   "outputDirectory": ".next",
   "devCommand": "pnpm --filter ./apps/shell dev",
   "functions": {
-    "api/**/*.ts": {
+    "app/api/**/route.ts": {
       "maxDuration": 60,
       "memory": 1024
     }
