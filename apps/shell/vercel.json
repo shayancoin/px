@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "sh -c 'unset PNPM_FILTER && pnpm -w install --frozen-lockfile'",
-  "buildCommand": "sh -c 'unset PNPM_FILTER && pnpm -w --filter @repo/design-engine build && pnpm -w --filter @repo/generation-engine build && pnpm --filter ./apps/shell build'",
+  "installCommand": "pnpm -C apps/shell install --frozen-lockfile",
+  "buildCommand": "sh -c 'pnpm -C packages/design-engine build && pnpm -C packages/generation-engine build && pnpm -C apps/shell build'",
   "outputDirectory": ".next",
   "devCommand": "pnpm --filter ./apps/shell dev",
   "env": {
