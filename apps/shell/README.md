@@ -24,13 +24,13 @@ Copy `.env.example` to `.env.local` and populate all required secrets.
 | `NEXT_PUBLIC_APP_URL` | Canonical origin for client routing & webhooks |
 | `NEXT_PUBLIC_FIREBASE_*` | Firebase Web SDK configuration |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key for Checkout |
-| `OPENAI_API_KEY` | OpenAI key for layout fusion |
+| `GEMINI_API_KEY` | Google Gemini key for layout fusion |
 | `STRIPE_SECRET_KEY` | Stripe secret for Checkout sessions |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret for webhook verification |
 | `FIREBASE_PROJECT_ID` `FIREBASE_CLIENT_EMAIL` `FIREBASE_PRIVATE_KEY` | Firebase Admin credentials (service account) |
 | `FIREBASE_STORAGE_BUCKET` | Storage bucket used for preview exports |
 
-Optional overrides: `OPENAI_FUSE_MODEL`, `OPENAI_MAX_RETRIES`, `OPENAI_INITIAL_BACKOFF_MS`.
+Optional overrides: `GEMINI_FUSE_MODEL`, `GEMINI_MODEL`, `GEMINI_MAX_RETRIES`, `GEMINI_INITIAL_BACKOFF_MS`.
 
 ### Scripts
 

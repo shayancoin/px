@@ -224,7 +224,7 @@ export default function VariantsPage() {
               onChange={(event) => setUseLLM(event.target.checked)}
               className="h-4 w-4 rounded"
             />
-            Enable LLM path (requires OPENAI_API_KEY)
+            Enable LLM path (requires GEMINI_API_KEY)
           </label>
           <button
             type="button"

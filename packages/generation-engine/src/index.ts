@@ -214,7 +214,7 @@ const generateLlmVariants = async (
   top: TopColor,
   budget?: number | null,
 ) => {
-  const hasKey = Boolean(process.env.OPENAI_API_KEY);
+  const hasKey = Boolean(process.env.GEMINI_API_KEY);
   if (!hasKey) {
     return generateLocalVariants(layout, count, door, top, budget);
   }
@@ -235,7 +235,7 @@ export async function generateAll(input: VariantInput = {}): Promise<GenerationO
   const perLayout = clampVariants(input.perLayout);
   const door = resolveDoor(input.baseDoor);
   const top = resolveTop(input.baseTop);
-  const useLLM = Boolean(input.useLLM && process.env.OPENAI_API_KEY);
+  const useLLM = Boolean(input.useLLM && process.env.GEMINI_API_KEY);
   const runId = nanoid(10);
 
   const results: Record<CanonicalLayoutId, VariantSummary[]> = {} as Record<
