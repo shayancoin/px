@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
+export const preferredRegion = ["iad1"];
 
 const requestSchema = z.object({
   orderId: z.string().min(1),
