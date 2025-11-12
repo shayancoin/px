@@ -5,6 +5,8 @@ import { getStripeClient } from "@/lib/stripe";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 10;
+export const preferredRegion = ["iad1"];
 
 const stripe = getStripeClient();
 

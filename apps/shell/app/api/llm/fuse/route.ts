@@ -21,6 +21,8 @@ import { runWithSemaphore, Semaphore } from "@/lib/concurrency";
 import { callGeminiWithSchema } from "@/lib/llm/providers/gemini";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
+export const preferredRegion = ["iad1"];
 
 const layoutIdEnum = z.enum(LAYOUT_IDS as [LayoutId, ...LayoutId[]]);
 const doorIdEnum = z.enum(DOOR_FINISH_IDS as [string, ...string[]]);
